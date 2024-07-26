@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+import json
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -33,8 +34,8 @@ async def receive_message(request: Request):
     data = await request.json()
 
     os.makedirs("./messages", exist_ok=True)
-    with open(f"./messages/{str(time.time())}.json", "w") as f:
-        f.write(str(data))
+    with open(f"./messages/{str(int(1000*time.time()))}.json", "w") as f:
+        f.write(json.dumps(data))
 
     note_request = Note(content=str(data["message"]), node_id=str(uuid.uuid4()))
 
@@ -45,6 +46,8 @@ async def receive_message(request: Request):
 
 @app.post("/note")
 async def make_note(note_request_node: Note) -> JSONResponse:
+    note_request_node.saveFile()
+
     db = DB("db/notes-v0.0.1.db", "note")
 
     try:

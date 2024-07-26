@@ -25,7 +25,7 @@ class Message(Node):
 
 class Note(Node):
     h0: str = "note"
-    timestamp: str = Field(default_factory= lambda: str(int(time.time())))
+    timestamp: str = Field(default_factory= lambda: str(int(1000* time.time())))
     origin: str = "/notes"
     author: str = "mcfrank"
     content: str
@@ -34,6 +34,8 @@ class Note(Node):
         lines = [
             "---",
             f"id: {self.node_id}",
+            f"version: {self.version}",
+            f"type: {self.type}",
             f"h0: {self.h0}",
             f"timestamp: {self.timestamp}",
             f"origin: {self.origin}",
@@ -48,7 +50,7 @@ class Note(Node):
     
     def saveFile(self) -> None:
         os.makedirs("./notes", exist_ok=True)
-        with open(f"./notes/{self.node_id}.md", "w") as f:
+        with open(f"./notes/{self.timestamp}.md", "w") as f:
             f.write(self.to_md())
     
 
