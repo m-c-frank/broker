@@ -12,7 +12,7 @@ from models import Note, Node
 from dbstuff import DB
 
 
-PATH_DB = os.environ.get("PATH_DB", "db/")
+URL_DB = os.environ.get("URL_DB", "db/notes-v0.0.1.db")
 
 
 class Message(BaseModel):
@@ -52,7 +52,7 @@ async def receive_message(request: Request):
 async def make_note(note_request_node: Note) -> JSONResponse:
     note_request_node.saveFile()
 
-    db = DB("notes-v0.0.1.db", "note", path_db=PATH_DB)
+    db = DB(url_db=URL_DB)
 
     try:
         db.select(note_request_node.node_id)
@@ -70,7 +70,7 @@ async def make_note(note_request_node: Note) -> JSONResponse:
 
 @app.get("/nodes")
 async def get_nodes():
-    db = DB(db_name="notes-v0.0.1.db", path_db=PATH_DB)
+    db = DB(url_db=URL_DB)
     nodes: List[Node] = db.select_all()
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})

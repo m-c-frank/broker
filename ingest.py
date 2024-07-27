@@ -3,10 +3,8 @@ import os
 from models import Node, Note
 import os
 
-PATH_DB = os.environ.get("PATH_DB", "db/")
-
 def ingest_node(node: Node):
-    _db = db.DB(db_name="notes-v0.0.1.db", path_db=PATH_DB)
+    _db = db.DB()
     _db.create_table(tablename="notes")
 
     try:
@@ -33,12 +31,8 @@ def ingest_repo_notes(repo_path: str):
     notes = []
     for path_note in path_notes:
         ## get author by file owner
-        author = os.getlogin()
-        note = Note(
-            content=open(path_note, "r").read(),
-            author=author,
-            origin=path_note,
-            version="0.0.1"
+        note = Note.from_note(
+            note_content=open(path_note, "r").read()
         )
         notes.append(note)
 

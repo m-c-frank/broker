@@ -1,2 +1,2 @@
-docker build -t telegram-bot-server .
-docker run -d -p 5000:5000 telegram-bot-server
+docker build -t node-server .
+docker run -d -p 5000:5000 node-server

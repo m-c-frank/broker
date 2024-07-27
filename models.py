@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 import os
 import time
 import uuid
+import yaml
 
 
 class Node(BaseModel):
@@ -54,6 +55,17 @@ class Note(Node):
         with open(f"./notes/{self.timestamp}.md", "w") as f:
             f.write(self.to_md())
     
+    @staticmethod
+    def from_note(note_content):
+        parts = note_content.split("---")
+        assert len(parts) == 3
+        frontmatter_raw = parts[1]
+        frontmatter = yaml.safe_load(frontmatter_raw)
+
+        return Note(
+            **frontmatter,
+            content=parts[2]
+        )
 
 if __name__=="__main__":
     note = Note(content="This is a note")
