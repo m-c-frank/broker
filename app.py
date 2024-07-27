@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 import json
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,8 +8,11 @@ from typing import List, Union
 import time
 import os
 
-from models import Note
-from db import DB
+from models import Note, Node
+from dbstuff import DB
+
+
+PATH_DB = os.environ.get("PATH_DB", "db/")
 
 
 class Message(BaseModel):
@@ -20,9 +23,10 @@ class Message(BaseModel):
 
 app = FastAPI()
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,7 +52,7 @@ async def receive_message(request: Request):
 async def make_note(note_request_node: Note) -> JSONResponse:
     note_request_node.saveFile()
 
-    db = DB("db/notes-v0.0.1.db", "note")
+    db = DB("notes-v0.0.1.db", "note", path_db=PATH_DB)
 
     try:
         db.select(note_request_node.node_id)
@@ -64,13 +68,23 @@ async def make_note(note_request_node: Note) -> JSONResponse:
     return JSONResponse(content={"message": "Note created", "note": note_request_node.model_dump_json()})
 
 
+@app.get("/nodes")
+async def get_nodes():
+    db = DB("notes-v0.0.1.db", "note")
+    nodes: List[Node] = db.select_all()
+    del db
+    return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
+
+
 class ChatRequest(BaseModel):
     history: List[Message]
+
 
 class ChatResponse(BaseModel):
     message: Message
 
-@ app.post("/chat")
+
+@app.post("/chat")
 async def chat(request: ChatRequest) -> ChatResponse:
     print(request)
     response=Message(
@@ -79,6 +93,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         content=f"mirror {request.history[-1].content}"
     )
     return ChatResponse(message=response)
+
 
 if __name__ == '__main__':
     import uvicorn

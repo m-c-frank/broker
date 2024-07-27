@@ -7,16 +7,16 @@ import sqlite3
 class DB:
     type: str = "node"
 
-    def __init__(self, db_path: str, _type: str = "node") -> None:
+    def __init__(self, db_name: str, _type: str = "node", path_db: str = "db/") -> None:
         """initialize the database connection"""
 
-        self.db_path = db_path
+        self.db_path = os.path.join(path_db, db_name)
 
         self.type = _type
 
         if self.type != "node":
-            os.makedirs("db", exist_ok=True)
-            self.db_path_nodes = "db/nodes-v0.0.1.db"            
+            os.makedirs(path_db, exist_ok=True)
+            self.db_path_nodes = os.path.join(path_db, "nodes-v0.0.1.db")
 
         self.connection_nodes = sqlite3.connect(self.db_path_nodes)
         self.connection = sqlite3.connect(self.db_path)
@@ -114,7 +114,7 @@ class DB:
         return nodes
 
 
-    def get_all_node_ids(self) -> List[Message]:
+    def select_all_ids(self) -> List[Message]:
         """get all the ids of the nodes"""
         cursor = self.connection_nodes.execute(
             """
@@ -123,6 +123,19 @@ class DB:
             """
         )
         return [row[0] for row in cursor.fetchall()]
+    
+    def select_all(self) -> List[Node]:
+        """get all the nodes"""
+        nodes = []
+        cursor = self.connection_nodes.execute(
+            """
+            SELECT id, type, version
+            FROM nodes;
+            """
+        )
+        for row in cursor.fetchall():
+            nodes.append(Node(node_id=row[0], type=row[1], version=row[2]))
+        return nodes
 
     # not required as of now
     # not required as of now
