@@ -26,6 +26,7 @@ class Message(Node):
 class Note(Node):
     h0: str = "note"
     timestamp: str = Field(default_factory= lambda: str(int(1000* time.time())))
+    type: str = "note"
     origin: str = "/notes"
     author: str = "mcfrank"
     content: str

@@ -70,7 +70,7 @@ async def make_note(note_request_node: Note) -> JSONResponse:
 
 @app.get("/nodes")
 async def get_nodes():
-    db = DB("notes-v0.0.1.db", "note")
+    db = DB(db_name="notes-v0.0.1.db", path_db=PATH_DB)
     nodes: List[Node] = db.select_all()
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})

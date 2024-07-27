@@ -1,9 +1,13 @@
 import dbstuff as db
 import os
 from models import Node, Note
+import os
+
+PATH_DB = os.environ.get("PATH_DB", "db/")
 
 def ingest_node(node: Node):
-    _db = db.DB("notes-v0.0.1.db", "note")
+    _db = db.DB(db_name="notes-v0.0.1.db", path_db=PATH_DB)
+    _db.create_table(tablename="notes")
 
     try:
         _db.select(node.node_id)

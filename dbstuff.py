@@ -7,42 +7,20 @@ import sqlite3
 class DB:
     type: str = "node"
 
-    def __init__(self, db_name: str, _type: str = "node", path_db: str = "db/") -> None:
+    def __init__(self, db_name: str, path_db: str = "db/") -> None:
         """initialize the database connection"""
 
         self.db_path = os.path.join(path_db, db_name)
 
-        self.type = _type
+        os.makedirs(path_db, exist_ok=True)
 
-        if self.type != "node":
-            os.makedirs(path_db, exist_ok=True)
-            self.db_path_nodes = os.path.join(path_db, "nodes-v0.0.1.db")
-
-        self.connection_nodes = sqlite3.connect(self.db_path_nodes)
         self.connection = sqlite3.connect(self.db_path)
         self.create_table()
 
-    def create_table(self) -> None:
+    def create_table(self, tablename=None) -> None:
         """create the node tables if they dont exist"""
-        if self.type != "node":
-            with self.connection:
-                self.connection.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS notes (
-                        id TEXT PRIMARY KEY,
-                        nodenode_id TEXT,
-                        h0 TEXT,
-                        timestamp INTEGER,
-                        origin TEXT,
-                        author TEXT,
-                        content TEXT,
-                        FOREIGN KEY (node_id) REFERENCES nodes(id)
-                    );
-                    """
-                )
-
-        with self.connection_nodes:
-            self.connection_nodes.execute(
+        with self.connection:
+            self.connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS nodes (
                     id TEXT PRIMARY KEY,
@@ -52,36 +30,50 @@ class DB:
                 """
             )
 
-    def insert(self, node: Node) -> None:
-        """Insert a new node into the databases."""
-        if self.type != "node":
-            if self.type == "note":
-                if not isinstance(node, Note):
-                    raise ValueError(f"Expected Note, got {type(node)}")
-                
-                with self.connection:
+            if tablename is not None:
+                if tablename == "notes":
                     self.connection.execute(
                         """
-                        INSERT INTO notes (id, node_id, h0, timestamp, origin, author, content)
-                        VALUES (?, ?, ?, ?, ?, ?, ?);
-                        """,
-                        (node.node_id, node.node_id, node.h0, node.timestamp, node.origin, node.author, node.content)
+                        CREATE TABLE IF NOT EXISTS notes (
+                            node_id TEXT PRIMARY KEY,
+                            h0 TEXT,
+                            timestamp INTEGER,
+                            origin TEXT,
+                            author TEXT,
+                            content TEXT,
+                            FOREIGN KEY (node_id) REFERENCES nodes(id)
+                        );
+                        """
                     )
 
-        with self.connection_nodes:
-            self.connection_nodes.execute(
+    def insert(self, node: Node) -> None:
+        """insert a new node into the databases"""
+        with self.connection:
+            self.connection.execute(
                 """
                 INSERT INTO nodes (id, version, type)
                 VALUES (?, ?, ?);
                 """,
                 (node.node_id, node.version, node.type)
             )
+            if node.type == "note":
+                if not isinstance(node, Note):
+                    raise ValueError(f"Expected Note, got {type(node)}")
+                
+                with self.connection:
+                    self.connection.execute(
+                        """
+                        INSERT INTO notes (node_id, h0, timestamp, origin, author, content)
+                        VALUES (?, ?, ?, ?, ?, ?);
+                        """,
+                        (node.node_id, node.h0, node.timestamp, node.origin, node.author, node.content)
+                    )
 
-    def select(self, node_id: str) -> List[Node]:
+
+    def select(self, node_id: str) -> Node:
         """Select a node by its ID."""
-        nodes = []
-        print(node_id)
-        cursor = self.connection_nodes.execute(
+        node = None
+        cursor = self.connection.execute(
             """
             SELECT id, type, version
             FROM nodes
@@ -91,32 +83,34 @@ class DB:
         )
         row = cursor.fetchone()
         if row:
-            nodes.append(Node(node_id=row[0], type=row[1], version=row[2]))
+            node = Node(node_id=row[0], type=row[1], version=row[2])
         else:
             raise ValueError(f"No node with ID {node_id}")
         
-        if self.type != "node":
-            if self.type == "note":
-                cursor = self.connection.execute(
-                    """
-                    SELECT id, node_id, h0, timestamp, origin, author, content
-                    FROM notes
-                    WHERE id = ?;
-                    """,
-                    (str(node_id),)
-                )
-                row = cursor.fetchone()
-                if row:
-                    nodes.append(Note(node_id=row[0], nodenode_id=row[1], h0=row[2], timestamp=row[3], origin=row[4], author=row[5], content=row[6]))
-                else:
-                    raise ValueError(f"No note with ID {node_id}")
+        if node.type == "note":
+            cursor = self.connection.execute(
+                """
+                SELECT node_id, h0, timestamp, origin, author, content
+                FROM notes
+                WHERE node_id = ?;
+                """,
+                (str(node_id),)
+            )
+            row = cursor.fetchone()
+            if row:
+                node = Note(node_id=row[0], h0=row[1], timestamp=row[2], origin=row[3], author=row[4], content=row[5], type="note", version=node.version)
+            else:
+                raise ValueError(f"No note with ID {node_id}")
 
-        return nodes
+        if node is None:
+            raise ValueError(f"No node with ID {node_id}")
+
+        return node
 
 
-    def select_all_ids(self) -> List[Message]:
+    def get_all_ids(self) -> List[Node]:
         """get all the ids of the nodes"""
-        cursor = self.connection_nodes.execute(
+        cursor = self.connection.execute(
             """
             SELECT id
             FROM nodes;
@@ -127,14 +121,21 @@ class DB:
     def select_all(self) -> List[Node]:
         """get all the nodes"""
         nodes = []
-        cursor = self.connection_nodes.execute(
+        cursor = self.connection.execute(
             """
             SELECT id, type, version
             FROM nodes;
             """
         )
-        for row in cursor.fetchall():
-            nodes.append(Node(node_id=row[0], type=row[1], version=row[2]))
+
+        rows = cursor.fetchall()
+        if rows:
+            for row in rows:
+                nodes.append(Node(node_id=row[0], type=row[1], version=row[2]))
+        
+        if not nodes:
+            raise ValueError(f"No nodes found")
+        
         return nodes
 
     # not required as of now
@@ -183,4 +184,3 @@ class DB:
     def __del__(self) -> None:
         """Ensure the database connection is closed when the object is deleted."""
         self.connection.close()
-        self.connection_nodes.close()
