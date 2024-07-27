@@ -1,22 +1,21 @@
-import dbstuff as db
-import os
+from dbstuff import DBSQLite as DB
 from models import Node, Note
 import os
 
 def ingest_node(node: Node):
-    _db = db.DB()
-    _db.create_table(tablename="notes")
+    db = DB()
+    db.create_table(tablename="notes")
 
     try:
-        _db.select(node.node_id)
+        db.select(node.node_id)
         # todo not implemented yet
-        _db.update(node)
+        db.update(node)
     except AttributeError:
-        _db.insert(node)
+        db.insert(node)
     except ValueError:
-        _db.insert(node)
+        db.insert(node)
 
-    del _db
+    del db
 
     return
 

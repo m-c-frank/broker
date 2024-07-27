@@ -1,58 +1,27 @@
-from fastapi import FastAPI, Request
-import json
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import uuid
-from typing import List, Union
-import time
-import os
+from typing import List
 
 from models import Note, Node
-from dbstuff import DB
-
-
-URL_DB = os.environ.get("URL_DB", "db/notes-v0.0.1.db")
-
-
-class Message(BaseModel):
-    id: Union[int, str]
-    role: str
-    content: str
-
+from dbstuff import DBSQLite as DB
 
 app = FastAPI()
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.post("/message")
-async def receive_message(request: Request):
-    data = await request.json()
-
-    os.makedirs("./messages", exist_ok=True)
-    with open(f"./messages/{str(int(1000*time.time()))}.json", "w") as f:
-        f.write(json.dumps(data))
-
-    note_request = Note(content=str(data["message"]), node_id=str(uuid.uuid4()))
-
-    make_note_response = await make_note(note_request)
-
-    return JSONResponse(content={"message": f"Message received: {data}", "note": str(make_note_response.body)})
-
-
 @app.post("/note")
 async def make_note(note_request_node: Note) -> JSONResponse:
     note_request_node.saveFile()
 
-    db = DB(url_db=URL_DB)
+    db = DB()
 
     try:
         db.select(note_request_node.node_id)
@@ -70,29 +39,10 @@ async def make_note(note_request_node: Note) -> JSONResponse:
 
 @app.get("/nodes")
 async def get_nodes():
-    db = DB(url_db=URL_DB)
+    db = DB()
     nodes: List[Node] = db.select_all()
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
-
-
-class ChatRequest(BaseModel):
-    history: List[Message]
-
-
-class ChatResponse(BaseModel):
-    message: Message
-
-
-@app.post("/chat")
-async def chat(request: ChatRequest) -> ChatResponse:
-    print(request)
-    response=Message(
-        id=str(uuid.uuid4()),
-        role="assistant",
-        content=f"mirror {request.history[-1].content}"
-    )
-    return ChatResponse(message=response)
 
 
 if __name__ == '__main__':
