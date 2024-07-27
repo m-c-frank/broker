@@ -1,10 +1,13 @@
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 
+from fastapi.staticfiles import StaticFiles
+
 from models import Note, Node
 from dbstuff import DBSQLite as DB
+import os
 
 app = FastAPI()
 
@@ -15,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# if ./static exists, serve it at /
+
 
 
 @app.post("/note")
@@ -43,6 +49,16 @@ async def get_nodes():
     nodes: List[Node] = db.select_all()
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
+
+@app.get("/notes")
+async def get_notes():
+    db = DB()
+    nodes: List[Node] = db.select_all_notes()
+    del db
+    return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
+
+if os.path.exists("./static"):
+    app.mount("/", StaticFiles(directory="./static", html=True), name="static")
 
 
 if __name__ == '__main__':

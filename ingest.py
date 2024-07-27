@@ -31,7 +31,7 @@ def ingest_repo_notes(repo_path: str):
     for path_note in path_notes:
         ## get author by file owner
         note = Note.from_note(
-            note_content=open(path_note, "r").read()
+            note_content=open(path_note, "r").read(), note_path=path_note
         )
         notes.append(note)
 

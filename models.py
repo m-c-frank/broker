@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Union
 from pydantic import BaseModel, Field
 import os
 import time
@@ -26,7 +26,7 @@ class Message(Node):
 
 class Note(Node):
     h0: str = "note"
-    timestamp: str = Field(default_factory= lambda: str(int(1000* time.time())))
+    timestamp: Union[int, str] = Field(default_factory= lambda: str(int(1000* time.time())))
     type: str = "note"
     origin: str = "/notes"
     author: str = "mcfrank"
@@ -56,11 +56,28 @@ class Note(Node):
             f.write(self.to_md())
     
     @staticmethod
-    def from_note(note_content):
+    def from_note(note_content, note_path):
         parts = note_content.split("---")
         assert len(parts) == 3
         frontmatter_raw = parts[1]
         frontmatter = yaml.safe_load(frontmatter_raw)
+
+        if "timestamp" not in frontmatter:
+            tsfilename = None
+            tsdate = None
+            if "date" in frontmatter:
+                #date: "2024-07-25T21:45:38+02:00"
+                tsdate = int(time.mktime(time.strptime(frontmatter["date"], "%Y-%m-%dT%H:%M:%S%z")))
+            if len(note_path.split("/")[-1].replace(".md","")) == len("1722093491207") and note_path.isdigit():
+                tsfilename = int(note_path.split("/")[-1].replace(".md",""))
+
+            if tsdate:
+                frontmatter["timestamp"] = tsdate
+
+            if tsfilename:
+                frontmatter["timestamp"] = tsfilename
+                
+
 
         return Note(
             **frontmatter,

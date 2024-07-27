@@ -12,10 +12,7 @@ class DBSQLite:
 
     def __init__(self, url_db=URL_DB) -> None:
         """initialize the database connection"""
-        print("asdf")
-        print(url_db)
         self.connection = sqlite3.connect(url_db)
-        print(self.connection)
         self.create_table()
 
     def create_table(self, tablename=None) -> None:
@@ -136,7 +133,41 @@ class DBSQLite:
         
         if not nodes:
             raise ValueError(f"No nodes found")
-        
+
+        return nodes
+
+    def select_all_notes(self) -> List[Note]:
+        """get all the notes"""
+        nodes = []
+        cursor = self.connection.execute(
+            """
+                SELECT 
+                    nodes.id, 
+                    nodes.type, 
+                    nodes.version, 
+                    notes.node_id, 
+                    notes.h0, 
+                    notes.timestamp, 
+                    notes.origin, 
+                    notes.author, 
+                    notes.content
+                FROM 
+                    nodes
+                JOIN 
+                    notes 
+                ON 
+                    nodes.id = notes.node_id;
+            """
+        )
+
+        rows = cursor.fetchall()
+        if rows:
+            for row in rows:
+                nodes.append(Note(note_id=row[3], h0=row[4], timestamp=str(row[5]), origin=row[6], author=row[7], content=row[8], type=row[1], version=row[2]))
+            
+        if not nodes:
+            raise ValueError(f"No nodes found")
+
         return nodes
 
     def __del__(self) -> None:
