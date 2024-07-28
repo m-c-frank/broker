@@ -1,6 +1,0 @@
-[submodule "app-old"]
-	path = app-old
-	url = https://github.com/m-c-frank/nodespace
-[submodule "app"]
-	path = app
-  url = https://github.com/m-c-frank/webpresentations
