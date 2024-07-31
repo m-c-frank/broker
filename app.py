@@ -22,9 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# if ./static exists, serve it at /
-
-
 
 @app.post("/note")
 async def make_note(note_request_node: Note) -> JSONResponse:
