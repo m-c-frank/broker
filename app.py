@@ -9,7 +9,7 @@ from typing import List
 from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel
-from models import Message, Note, Node
+from models import Message, Note, Node, Embedding
 import llm
 from dbstuff import DBSQLite as DB
 import os
@@ -18,6 +18,13 @@ HOST = os.environ["HOST"]
 PORT = int(os.environ["PORT"])
 
 app = FastAPI()
+
+# factor out to test
+db = DB()
+db.create_table("nodes")
+db.create_table("notes")
+db.create_table("embeddings")
+del db
 
 app.add_middleware(
     CORSMiddleware,
@@ -85,16 +92,17 @@ async def message(message: Message) -> JSONResponse:
 async def make_note(note_request_node: Note) -> JSONResponse:
     note_request_node.saveFile()
 
+    note_embedding = Embedding.from_note(note_request_node)
+
     db = DB()
 
     try:
-        db.select(note_request_node.node_id)
-        # todo not implemented yet
-        db.update(note_request_node)
-    except AttributeError:
         db.insert(note_request_node)
-    except ValueError:
-        db.insert(note_request_node)
+        db.insert(note_embedding)
+    except Exception as e:
+        del db
+        return JSONResponse(content={"message": f"Error creating note: {e}"}, status_code=500)
+
 
     del db
 

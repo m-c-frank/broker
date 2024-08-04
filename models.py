@@ -1,9 +1,10 @@
-from typing import Union
+from typing import Union, List
 from pydantic import BaseModel, Field
 import os
 import time
 import uuid
 import yaml
+import embedder
 
 
 class Node(BaseModel):
@@ -15,6 +16,22 @@ class Node(BaseModel):
     version: str = "0.0.1"
     type: str = "node"
 
+class Embedding(Node):
+    type: str = "embedding"
+    vector: List
+    embedding_model: str
+
+    @staticmethod
+    def from_note(note: "Note") -> "Embedding":
+        embedding_vector = embedder.embed_text(note.content, "all-minilm")
+        embedding = Embedding(
+            node_id=note.node_id,
+            vector=embedding_vector,
+            embedding_model="all-minilm"
+        )
+        return embedding
+
+
 class Message(Node):
     role: str
     content: str
@@ -23,6 +40,7 @@ class Message(Node):
 # also add date?
 # sometimes the parsing is via date and it may not always work
 # so if date exists and timestamp not then create timestamp from date and use that
+
 
 class Note(Node):
     h0: str = "note"
@@ -102,6 +120,24 @@ class Note(Node):
             content="\n".join([f"{message.role}: {message.content}" for message in chat_history]),
             type="note-chat",
             timestamp=timestamp
+        )
+
+
+class EmbeddedNote(Note):
+    embedding: Embedding
+
+    @staticmethod
+    def from_note_and_embedding(note: Note, embedding: Embedding) -> "EmbeddedNote":
+        return EmbeddedNote(
+            node_id=note.node_id,
+            version=note.version,
+            type=note.type,
+            h0=note.h0,
+            timestamp=note.timestamp,
+            origin=note.origin,
+            author=note.author,
+            content=note.content,
+            embedding=embedding
         )
 
 if __name__=="__main__":
