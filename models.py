@@ -83,6 +83,26 @@ class Note(Node):
             **frontmatter,
             content=parts[2]
         )
+    
+    @staticmethod
+    def from_chat_history(chat_history):
+        "Markdown note from chat history"
+        lines = []
+        # timestamp=str(int(1000*time.time()))
+        # for message in chat_history:
+        #     lines.append(f"{message.role}: {message.content}")
+        
+        # return Note(
+        #     content="\n".join(lines)
+        #     type="note-chat",
+        #     timestamp=timestamp
+        # )
+        timestamp=str(int(1000*time.time()))
+        return Note(
+            content="\n".join([f"{message.role}: {message.content}" for message in chat_history]),
+            type="note-chat",
+            timestamp=timestamp
+        )
 
 if __name__=="__main__":
     note = Note(content="This is a note")

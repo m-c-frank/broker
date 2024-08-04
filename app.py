@@ -6,6 +6,7 @@ from typing import List
 from fastapi.staticfiles import StaticFiles
 
 from models import Note, Node
+import llm
 from dbstuff import DBSQLite as DB
 import os
 
@@ -22,6 +23,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+@app.post("/chat")
+async def make_note(chat_history: List[Message]) -> JSONResponse:
+    note = Note.from_chat_history(chat_history)
+    make_note_response = make_note(note)
+    return JSONResponse(content={"message": "Note created", "note": make_note_response.json()})
 
 @app.post("/note")
 async def make_note(note_request_node: Note) -> JSONResponse:
