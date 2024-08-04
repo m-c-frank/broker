@@ -1,4 +1,5 @@
 import uuid
+import json
 import llmfun
 import time
 from fastapi import FastAPI
@@ -9,7 +10,7 @@ from typing import List
 from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel
-from models import Message, Note, Node, Embedding
+from models import Message, Note, Node, Embedding, EmbeddedNote
 import llm
 from dbstuff import DBSQLite as DB
 import os
@@ -123,6 +124,47 @@ async def get_notes():
     nodes: List[Node] = db.select_all_notes()
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
+
+def cosine_similarity(v1, v2):
+    import numpy as np
+
+    v1 = np.array(v1)
+    v2 = np.array(v2)
+
+    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+
+@app.get("/graph/notes/force")
+async def get_note_force_graph():
+    """
+    Generate a graph of notes with similarity scores.
+    - Creates a 2D array of similarity scores using cosine similarity for each pair of notes.
+    - Returns a list of links with start and end nodes and a similarity score.
+    """
+    # Fetch notes and parse the response
+    notes_response = await get_notes()
+    notes = json.loads(notes_response.body)["nodes"]
+
+    links = []
+    nodes = []
+
+    for note_a in notes:
+        nodes.append(note_a)
+        for note_b in notes:
+            if note_a["node_id"] != note_b["node_id"]:
+                similarity = cosine_similarity(note_a["embedding"]["vector"], note_b["embedding"]["vector"])
+                links.append({
+                    "source_id": note_a["node_id"],
+                    "target_id": note_b["node_id"],
+                    "similarity": similarity
+                })
+
+    graph = {
+        "nodes": nodes,
+        "links": links
+    }
+    
+    return JSONResponse(content=graph)
 
 if os.path.exists("./static"):
     app.mount("/", StaticFiles(directory="./static", html=True), name="static")
