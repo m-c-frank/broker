@@ -1,3 +1,4 @@
+import time
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,9 +6,12 @@ from typing import List
 
 from fastapi.staticfiles import StaticFiles
 
-from models import Note, Node
+from models import Message, Note, Node
 from dbstuff import DBSQLite as DB
 import os
+import llm
+import llmfun
+import uuid
 
 app = FastAPI()
 
@@ -21,6 +25,44 @@ app.add_middleware(
 
 # if ./static exists, serve it at /
 
+class DependentNote(Note):
+    depends_on: str
+    
+
+@app.post("/message")
+async def message(message: Message) -> JSONResponse:
+    timestamp = int(1000 * time.time())
+    print(message)
+
+    message_note = Note(
+        node_id=str(uuid.uuid4()),
+        type="message",
+        origin="telegram",
+        author=message.role,
+        content=message.content,
+        timestamp=timestamp
+    )
+
+    await make_note(message_note)
+
+    messages = llmfun.define_russian_word(message.content)
+
+    response_message = llm.api(messages)
+
+    timestamp = int(1000 * time.time())
+    response_message_note = DependentNote(
+        node_id=str(uuid.uuid4()),
+        type="message",
+        origin="llm",
+        author="llm",
+        content=response_message,
+        depends_on=message_note.node_id,
+        timestamp=timestamp
+    )
+
+    await make_note(response_message_note)
+
+    return JSONResponse(content={"message": response_message})
 
 
 @app.post("/note")
