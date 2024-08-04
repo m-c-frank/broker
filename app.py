@@ -1,3 +1,5 @@
+import uuid
+import llmfun
 import time
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
@@ -6,16 +8,14 @@ from typing import List
 
 from fastapi.staticfiles import StaticFiles
 
+from pydantic import BaseModel
 from models import Message, Note, Node
 import llm
 from dbstuff import DBSQLite as DB
 import os
 
-HOST=os.environ["HOST"]
-PORT=int(os.environ["PORT"])
-import llm
-import llmfun
-import uuid
+HOST = os.environ["HOST"]
+PORT = int(os.environ["PORT"])
 
 app = FastAPI()
 
@@ -26,6 +26,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 class Message(BaseModel):
     role: str
@@ -39,9 +40,10 @@ async def make_note(chat_history: List[Message]) -> JSONResponse:
     return JSONResponse(content={"message": "Note created", "note": make_note_response.json()})
 # if ./static exists, serve it at /
 
+
 class DependentNote(Note):
     depends_on: str
-    
+
 
 @app.post("/message")
 async def message(message: Message) -> JSONResponse:
@@ -105,6 +107,7 @@ async def get_nodes():
     nodes: List[Node] = db.select_all()
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
+
 
 @app.get("/notes")
 async def get_notes():
