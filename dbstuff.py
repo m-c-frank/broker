@@ -131,9 +131,6 @@ class DBSQLite:
             for row in rows:
                 nodes.append(Node(node_id=row[0], type=row[1], version=row[2]))
         
-        if not nodes:
-            raise ValueError(f"No nodes found")
-
         return nodes
 
     def select_all_notes(self) -> List[Note]:
@@ -165,9 +162,6 @@ class DBSQLite:
             for row in rows:
                 nodes.append(Note(note_id=row[3], h0=row[4], timestamp=str(row[5]), origin=row[6], author=row[7], content=row[8], type=row[1], version=row[2]))
             
-        if not nodes:
-            raise ValueError(f"No nodes found")
-
         return nodes
 
     def __del__(self) -> None:

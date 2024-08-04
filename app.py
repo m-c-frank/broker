@@ -9,6 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from models import Message, Note, Node
 from dbstuff import DBSQLite as DB
 import os
+
+HOST=os.environ["HOST"]
+PORT=int(os.environ["PORT"])
 import llm
 import llmfun
 import uuid
@@ -105,4 +108,5 @@ if os.path.exists("./static"):
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=5000)
+    print(f"Running on {HOST}:{PORT}")
+    uvicorn.run(app, host=HOST, port=PORT)
