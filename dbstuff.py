@@ -1,4 +1,4 @@
-from models import Embedding, Note, Node, EmbeddedNote
+from .models import Embedding, Note, Node, EmbeddedNote, Link, ForceLink
 import json
 from typing import List, Union
 import sqlite3
@@ -9,6 +9,7 @@ if URL_DB == "db/notes-v0.0.1.db":
     os.makedirs(os.path.dirname(URL_DB), exist_ok=True)
 
 class DBSQLite:
+    # delete this
     type: str = "node"
 
     def __init__(self, url_db: str = URL_DB) -> None:
@@ -43,7 +44,7 @@ class DBSQLite:
                     );
                     """
                 )
-            elif tablename == "embeddings":
+            if tablename == "embeddings":
                 self.connection.execute(
                     """
                     CREATE TABLE IF NOT EXISTS embeddings (
@@ -54,13 +55,60 @@ class DBSQLite:
                     );
                     """
                 )
+            
+            if tablename == "links":
+                self.connection.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS links (
+                        node_id TEXT PRIMARY KEY,
+                        source TEXT,
+                        target TEXT,
+                        force REAL,
+                        FOREIGN KEY (node_id) REFERENCES nodes(id)
+                    );
+                    """
+                )
 
     def insert(self, node: Node) -> None:
         print(node.node_id)
         print(node.type)
         """Insert a new node into the databases"""
         with self.connection:
-            if node.type == "note":
+            type_tags = node.type.split(":")
+            if "link" in type_tags:
+                if not isinstance(node, Link):
+                    raise ValueError(f"Expected Link, got {type(node)}")
+
+                self.connection.execute(
+                    """
+                    INSERT INTO nodes (id, type, version)
+                    VALUES (?, ?, ?);
+                    """,
+                    (node.node_id, node.type, node.version)
+                )
+
+                if "force" in type_tags:
+                    if not isinstance(node, ForceLink):
+                        raise ValueError(f"Expected ForceLink, got {type(node)}")
+
+                    self.connection.execute(
+                        """
+                        INSERT INTO links (node_id, source, target, force)
+                        VALUES (?, ?, ?, ?);
+                        """,
+                        #todo is to factor out node.similarity from force nodes
+                        (node.node_id, node.source, node.target, node.similarity)
+                    )
+                else:
+                    self.connection.execute(
+                        """
+                        INSERT INTO links (node_id, source, target)
+                        VALUES (?, ?, ?);
+                        """,
+                        (node.node_id, node.source, node.target)
+                    )
+
+            if "note" in type_tags:
                 if not isinstance(node, Note):
                     raise ValueError(f"Expected Note, got {type(node)}")
 
@@ -80,7 +128,7 @@ class DBSQLite:
                     (node.node_id, node.h0, node.timestamp, node.origin, node.author, node.content)
                 )
 
-            elif node.type == "embedding":
+            if "embedding" in type_tags:
                 if not isinstance(node, Embedding):
                     raise ValueError(f"Expected Embedding, got {type(node)}")
                 # check that corresponding node exists

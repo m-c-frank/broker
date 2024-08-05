@@ -4,7 +4,8 @@ import os
 import time
 import uuid
 import yaml
-import embedder
+from .embedder import embedder
+
 
 
 class Node(BaseModel):
@@ -16,6 +17,24 @@ class Node(BaseModel):
     version: str = "0.0.1"
     type: str = "node"
 
+
+class Link(Node):
+    source: str
+    target: str
+    type: str = "link"
+
+class Graph(Node):
+    nodes: List[Node]
+    links: List[Link]
+    type: str = "graph"
+
+class ForceLink(Link):
+    similarity: float
+
+class ForceGraph(Graph):
+    type: str = "force-graph"
+    links: List[ForceLink]
+
 class Embedding(Node):
     type: str = "embedding"
     vector: List
@@ -23,7 +42,7 @@ class Embedding(Node):
 
     @staticmethod
     def from_note(note: "Note") -> "Embedding":
-        embedding_vector = embedder.embed_text(note.content, "all-minilm")
+        embedding_vector = embedder(note.content, "all-minilm")
         embedding = Embedding(
             node_id=note.node_id,
             vector=embedding_vector,
@@ -138,6 +157,23 @@ class EmbeddedNote(Note):
             author=note.author,
             content=note.content,
             embedding=embedding
+        )
+
+    def from_link(link: Link, directed=False) -> "Note":
+
+        content = f"{link.source} -> {link.target}"
+        if not directed:
+            content = f"{link.source} -- {link.target}"
+
+        return Note(
+            node_id=link.node_id,
+            version="0.0.1",
+            type="link:note",
+            h0="note",
+            timestamp=str(int(1000 * time.time())),
+            origin="Note.from_link",
+            author="note",
+            content=content
         )
 
 if __name__=="__main__":

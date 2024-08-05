@@ -2,28 +2,29 @@ import http.client
 import json
 import re
 
-def api(messages, model="granite-code:3b"):
+
+def api(messages, model="granite-code:3b", save=True) -> str:
     conn = http.client.HTTPConnection("localhost", 11434)
-    
+
     headers = {
         "Content-Type": "application/json"
     }
-    from llmfun import openai_define_russian_word
     data = {
         "model": model,
         "messages": messages
     }
-    
     json_data = json.dumps(data)
-    
-    conn.request("POST", "/v1/chat/completions", body=json_data, headers=headers)
-    
+
+    conn.request("POST", "/v1/chat/completions",
+                 body=json_data, headers=headers)
+
     response = conn.getresponse()
     response_data = response.read().decode("utf-8")
 
     formatted_messages = json.dumps(messages, indent=4, ensure_ascii=False)
 
-    response_message = json.loads(response_data)["choices"][0]["message"]["content"]
+    response_message = json.loads(response_data)[
+        "choices"][0]["message"]["content"]
 
     lines = [
         "# prompt",
@@ -36,6 +37,8 @@ def api(messages, model="granite-code:3b"):
     final_output = "\n".join(lines)
 
     return final_output
+
+llm = api
 
 if __name__ == "__main__":
     messages = [

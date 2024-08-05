@@ -1,18 +1,19 @@
 import uuid
 import json
-import llmfun
 import time
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 
+from typing import Dict
 from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel
-from models import Message, Note, Node, Embedding, EmbeddedNote
-import llm
-from dbstuff import DBSQLite as DB
+from .models import Message, Note, Node, Embedding, Link, ForceLink, ForceGraph
+# todo factor out force graph into plugins
+from .llm import llm
+from .dbstuff import DBSQLite as DB
 import os
 
 HOST = os.environ["HOST"]
@@ -24,6 +25,7 @@ app = FastAPI()
 db = DB()
 db.create_table("nodes")
 db.create_table("notes")
+db.create_table("links")
 db.create_table("embeddings")
 del db
 
@@ -42,7 +44,7 @@ class Message(BaseModel):
 
 
 @app.post("/chat")
-async def make_note(chat_history: List[Message]) -> JSONResponse:
+async def make_note_from_chat(chat_history: List[Message]) -> JSONResponse:
     note = Note.from_chat_history(chat_history)
     make_note_response = make_note(note)
     return JSONResponse(content={"message": "Note created", "note": make_note_response.json()})
@@ -52,16 +54,18 @@ async def make_note(chat_history: List[Message]) -> JSONResponse:
 class DependentNote(Note):
     depends_on: str
 
+class ResponseMessage(BaseModel):
+    response: Message
 
 @app.post("/message")
-async def message(message: Message) -> JSONResponse:
+async def message(message: Message) -> ResponseMessage:
     timestamp = int(1000 * time.time())
     print(message)
 
     message_note = Note(
         node_id=str(uuid.uuid4()),
         type="message",
-        origin="telegram",
+        origin="message",
         author=message.role,
         content=message.content,
         timestamp=timestamp
@@ -69,28 +73,50 @@ async def message(message: Message) -> JSONResponse:
 
     await make_note(message_note)
 
-    messages = llmfun.define_russian_word(message.content)
-
-    response_message = llm.api(messages)
+    response_message = llm.api(messages=[
+        {
+            "role": "system",
+            "content": "just answer in a natural way in all lowercase and dont be very concise no big fancy words. imagine im taking a note."
+        },
+        {
+            "role": message.role,
+            "content": message.content
+        }
+    ])
 
     timestamp = int(1000 * time.time())
-    response_message_note = DependentNote(
+
+    response_message_note = Note(
         node_id=str(uuid.uuid4()),
         type="message",
         origin="llm",
         author="llm",
         content=response_message,
-        depends_on=message_note.node_id,
         timestamp=timestamp
+    )
+
+    link = Link(
+        node_id=str(uuid.uuid4()),
+        source=message_note.node_id,
+        target=response_message_note.node_id
     )
 
     await make_note(response_message_note)
 
-    return JSONResponse(content={"message": response_message})
+    note_link = Note.from_link(link)
+
+    await make_note(note_link)
+
+    return {
+        "message:response": {
+            "role": "llm",
+            "content": response_message
+        }
+    }
 
 
 @app.post("/note")
-async def make_note(note_request_node: Note) -> JSONResponse:
+async def make_note(note_request_node: Note):
     note_request_node.saveFile()
 
     note_embedding = Embedding.from_note(note_request_node)
@@ -101,13 +127,17 @@ async def make_note(note_request_node: Note) -> JSONResponse:
         db.insert(note_request_node)
         db.insert(note_embedding)
     except Exception as e:
+        print(e)
         del db
-        return JSONResponse(content={"message": f"Error creating note: {e}"}, status_code=500)
-
 
     del db
 
-    return JSONResponse(content={"message": "Note created", "note": note_request_node.model_dump_json()})
+@app.post("/link")
+async def make_link(link: Link):
+    db = DB()
+    db.insert(link)
+    del db
+
 
 
 @app.get("/nodes")
@@ -119,11 +149,11 @@ async def get_nodes():
 
 
 @app.get("/notes")
-async def get_notes():
+async def get_notes() -> List[Note]:
     db = DB()
     nodes: List[Node] = db.select_all_notes()
     del db
-    return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
+    return nodes
 
 def cosine_similarity(v1, v2):
     import numpy as np
@@ -135,7 +165,9 @@ def cosine_similarity(v1, v2):
 
 
 @app.get("/graph/notes/force")
-async def get_note_force_graph():
+# async def get_note_force_graph() -> Dict
+# infer typing with pydantic
+async def get_note_force_graph() -> ForceGraph:
     """
     Generate a graph of notes with similarity scores.
     - Creates a 2D array of similarity scores using cosine similarity for each pair of notes.
@@ -143,7 +175,8 @@ async def get_note_force_graph():
     """
     # Fetch notes and parse the response
     notes_response = await get_notes()
-    notes = json.loads(notes_response.body)["nodes"]
+    # notes = json.loads(notes_response.body)["nodes"]
+    notes = [Note.model_validate(note) for note in notes_response]
 
     links = []
     nodes = []
@@ -151,20 +184,26 @@ async def get_note_force_graph():
     for note_a in notes:
         nodes.append(note_a)
         for note_b in notes:
-            if note_a["node_id"] != note_b["node_id"]:
-                similarity = cosine_similarity(note_a["embedding"]["vector"], note_b["embedding"]["vector"])
-                links.append({
-                    "source_id": note_a["node_id"],
-                    "target_id": note_b["node_id"],
-                    "similarity": similarity
-                })
-
-    graph = {
-        "nodes": nodes,
-        "links": links
-    }
+            if note_a.node_id != note_b.node_id:
+                similarity = cosine_similarity(note_a.embedding.vector, note_b.embedding.vector)
+                links.append(
+                    ForceLink(
+                        node_id=str(uuid.uuid4()),
+                        source=note_a.node_id,
+                        target=note_b.node_id,
+                        similarity=similarity,
+                        type="link:force"
+                    )
+                )
     
-    return JSONResponse(content=graph)
+
+    return ForceGraph(
+        node_id=str(uuid.uuid4()),
+        version="0.0.1",
+        type="graph:force",
+        nodes=nodes,
+        links=links
+    )
 
 if os.path.exists("./static"):
     app.mount("/", StaticFiles(directory="./static", html=True), name="static")

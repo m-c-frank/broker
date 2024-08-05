@@ -24,6 +24,8 @@ def embed_text(text: str, model: str) -> dict:
 
     return response.json()["data"][0]["embedding"]
 
+embedder = embed_text
+
 if __name__ == "__main__":
     text = "Your text string goes here"
     model = "all-minilm"
