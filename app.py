@@ -15,8 +15,8 @@ import llm
 from dbstuff import DBSQLite as DB
 import os
 
-HOST = os.environ["HOST"]
-PORT = int(os.environ["PORT"])
+HOST = os.environ["HOST_BROKER"]
+PORT = int(os.environ["PORT_BROKER"])
 
 app = FastAPI()
 
@@ -104,7 +104,6 @@ async def make_note(note_request_node: Note) -> JSONResponse:
         del db
         return JSONResponse(content={"message": f"Error creating note: {e}"}, status_code=500)
 
-
     del db
 
     return JSONResponse(content={"message": "Note created", "note": note_request_node.model_dump_json()})
@@ -125,6 +124,7 @@ async def get_notes():
     del db
     return JSONResponse(content={"nodes": [node.model_dump() for node in nodes]})
 
+
 def cosine_similarity(v1, v2):
     import numpy as np
 
@@ -133,6 +133,18 @@ def cosine_similarity(v1, v2):
 
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
+@app.get("/graph/notes")
+async def get_note_graph():
+    """
+    generate a graph of notes
+    returns a { "nodes": [], "links": [] } object
+    """
+    # Fetch notes and parse the response
+    notes_response = await get_notes()
+    notes = json.loads(notes_response.body)["nodes"]
+    links = json.loads(notes_response.body)["links"]
+
+    return JSONResponse(content=graph)
 
 @app.get("/graph/notes/force")
 async def get_note_force_graph():
@@ -152,7 +164,8 @@ async def get_note_force_graph():
         nodes.append(note_a)
         for note_b in notes:
             if note_a["node_id"] != note_b["node_id"]:
-                similarity = cosine_similarity(note_a["embedding"]["vector"], note_b["embedding"]["vector"])
+                similarity = cosine_similarity(
+                    note_a["embedding"]["vector"], note_b["embedding"]["vector"])
                 links.append({
                     "source_id": note_a["node_id"],
                     "target_id": note_b["node_id"],
@@ -163,7 +176,7 @@ async def get_note_force_graph():
         "nodes": nodes,
         "links": links
     }
-    
+
     return JSONResponse(content=graph)
 
 if os.path.exists("./static"):
