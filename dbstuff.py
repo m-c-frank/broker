@@ -6,7 +6,8 @@ import os
 
 URL_DB = os.environ.get("URL_DB", "db/notes-v0.0.1.db")
 print(f"URL_DB: {URL_DB}")
-if URL_DB == "db/notes-v0.0.1.db":
+## lol if you use this then fix this :)
+if "db/notes-v0.0.1.db" in URL_DB:
     os.makedirs(os.path.dirname(URL_DB), exist_ok=True)
 
 
