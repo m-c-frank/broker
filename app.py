@@ -16,8 +16,8 @@ from .llm import llm
 from .dbstuff import DBSQLite as DB
 import os
 
-HOST = os.environ["HOST"]
-PORT = int(os.environ["PORT"])
+HOST = os.environ["HOST_BROKER"]
+PORT = int(os.environ["PORT_BROKER"])
 
 app = FastAPI()
 
@@ -41,14 +41,6 @@ app.add_middleware(
 class Message(BaseModel):
     role: str
     content: str
-
-
-@app.post("/chat")
-async def make_note_from_chat(chat_history: List[Message]) -> JSONResponse:
-    note = Note.from_chat_history(chat_history)
-    make_note_response = make_note(note)
-    return JSONResponse(content={"message": "Note created", "note": make_note_response.json()})
-# if ./static exists, serve it at /
 
 
 class DependentNote(Note):
@@ -155,6 +147,7 @@ async def get_notes() -> List[Note]:
     del db
     return nodes
 
+
 def cosine_similarity(v1, v2):
     import numpy as np
 
@@ -163,6 +156,25 @@ def cosine_similarity(v1, v2):
 
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
+class Graph(BaseModel):
+    nodes: List[Note]
+    links: List[Link]
+
+@app.get("/graph/notes")
+async def get_note_graph() -> Graph:
+    """
+    generate a graph of notes
+    returns a { "nodes": [], "links": [] } object
+    """
+    # Fetch notes and parse the response
+    notes_response = await get_notes()
+    notes = json.loads(notes_response.body)["nodes"]
+    links = json.loads(notes_response.body)["links"]
+
+    return Graph(
+        nodes=notes,
+        links=links
+    )
 
 @app.get("/graph/notes/force")
 # async def get_note_force_graph() -> Dict

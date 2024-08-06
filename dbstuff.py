@@ -5,8 +5,10 @@ import sqlite3
 import os
 
 URL_DB = os.environ.get("URL_DB", "db/notes-v0.0.1.db")
+print(f"URL_DB: {URL_DB}")
 if URL_DB == "db/notes-v0.0.1.db":
     os.makedirs(os.path.dirname(URL_DB), exist_ok=True)
+
 
 class DBSQLite:
     # delete this
@@ -125,7 +127,8 @@ class DBSQLite:
                     INSERT INTO notes (node_id, h0, timestamp, origin, author, content)
                     VALUES (?, ?, ?, ?, ?, ?);
                     """,
-                    (node.node_id, node.h0, node.timestamp, node.origin, node.author, node.content)
+                    (node.node_id, node.h0, node.timestamp,
+                     node.origin, node.author, node.content)
                 )
 
             if "embedding" in type_tags:
@@ -151,7 +154,6 @@ class DBSQLite:
                     (node.node_id, json.dumps(node.vector), node.embedding_model)
                 )
 
-
     def select(self, node_id: str) -> Node:
         """Select a node by its ID."""
         cursor = self.connection.execute(
@@ -168,7 +170,7 @@ class DBSQLite:
             return None
 
         node = Node(node_id=row[0], type=row[1], version=row[2])
-        
+
         if node.type == "note":
             cursor = self.connection.execute(
                 """
@@ -181,7 +183,8 @@ class DBSQLite:
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"No note with ID {node_id}")
-            note = Note(node_id=row[0], h0=row[1], timestamp=row[2], origin=row[3], author=row[4], content=row[5], type=node.type, version=node.version)
+            note = Note(node_id=row[0], h0=row[1], timestamp=row[2], origin=row[3],
+                        author=row[4], content=row[5], type=node.type, version=node.version)
             # check if nodeid has embedding
             cursor = self.connection.execute(
                 """
@@ -194,16 +197,17 @@ class DBSQLite:
             row = cursor.fetchone()
             if not row:
                 return note
-            
+
             vector = json.loads(row[1])
             assert isinstance(vector, list)
             assert isinstance(vector[0], float) or len(vector[0]) == 0
-            embedding = Embedding(node_id=row[0], vector=row[1], embedding_model=row[2], type="embedding", version=node.version)
+            embedding = Embedding(
+                node_id=row[0], vector=row[1], embedding_model=row[2], type="embedding", version=node.version)
             # unpack note into embedded note
-            embeddedNote = EmbeddedNote.from_note_and_embedding(note, embedding)
+            embeddedNote = EmbeddedNote.from_note_and_embedding(
+                note, embedding)
 
             return embeddedNote
-
 
     def get_all_ids(self) -> List[str]:
         """Get all the IDs of the nodes"""
@@ -260,9 +264,12 @@ ON
         )
         rows = cursor.fetchall()
         for row in rows:
-            note = Note(node_id=row[3], h0=row[4], timestamp=row[5], origin=row[6], author=row[7], content=row[8], type=row[1], version=row[2])
-            embedding = Embedding(node_id=row[3], vector=json.loads(row[9]), embedding_model=row[10], version=row[2])
-            embedded_note = EmbeddedNote.from_note_and_embedding(note, embedding)
+            note = Note(node_id=row[3], h0=row[4], timestamp=row[5], origin=row[6],
+                        author=row[7], content=row[8], type=row[1], version=row[2])
+            embedding = Embedding(node_id=row[3], vector=json.loads(
+                row[9]), embedding_model=row[10], version=row[2])
+            embedded_note = EmbeddedNote.from_note_and_embedding(
+                note, embedding)
             notes.append(embedded_note)
         return notes
 
