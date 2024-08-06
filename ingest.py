@@ -60,32 +60,6 @@ def ingest_repo_notes(repo_path: str):
 
     return embedded_notes
 
-def ingest_text_directory_without_embedding(repo_path: str) -> List[Note]:
-    #ingest notes with embedding
-    # need to factor out embedding i think
-    path_notes = []
-
-    filenames = os.listdir(repo_path)
-    for filename in filenames:
-        if filename.endswith(".md"):
-            path_notes.append(os.path.join(repo_path, filename))
-    
-    notes = []
-    for path_note in path_notes:
-        ## get author by file owner
-        note_content=open(path_note, "r").read()
-
-        note = Note.from_note(note_content, path_note)
-        note.type = "note"
-
-
-        notes.append(note)
-
-    for i in range(len(notes)):
-        ingest_node(notes[i])
-
-    return notes
-
 
 if __name__=="__main__":
     ingest_repo_notes("./notes")
