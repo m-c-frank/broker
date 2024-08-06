@@ -1,3 +1,4 @@
+# todo: clean up this mess
 # URL_EMBEDDING_MODEL="http://localhost:11434/v1/embeddings"
 # curl http://localhost:11434/v1/embeddings \
 #   -H "Content-Type: application/json" \
@@ -8,10 +9,17 @@
 #   }'
 
 import httpx
+import os
+
+HOST_LLM = os.environ.get("HOST_LLM", "localhost")
+PORT_LLM = os.environ.get("PORT_LLM", "11434")
+
+URL_LLM_API = f"http://{HOST_LLM}:{PORT_LLM}/"
+
 
 # URL_EMBEDDING_MODEL="http://localhost:11434/v1/embeddings"
-def embed_text(text: str, model: str) -> dict:
-    url = "http://localhost:11434/v1/embeddings"
+def embed_text(text: str, model: str, url_llm_api: str = URL_LLM_API) -> str:
+    url = f"{url_llm_api}v1/embeddings"
     headers = {
         "Content-Type": "application/json",
     }
@@ -23,6 +31,7 @@ def embed_text(text: str, model: str) -> dict:
     response.raise_for_status()
 
     return response.json()["data"][0]["embedding"]
+
 
 embedder = embed_text
 

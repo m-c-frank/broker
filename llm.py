@@ -1,10 +1,14 @@
 import http.client
 import json
-import re
+import os
 
+HOST_LLM = os.environ.get("HOST_LLM", "localhost")
+PORT_LLM = os.environ.get("PORT_LLM", "11434")
 
-def api(messages, model="granite-code:3b", save=True) -> str:
-    conn = http.client.HTTPConnection("localhost", 11434)
+URL_LLM_API = f"http://{HOST_LLM}:{PORT_LLM}/"
+
+def api(messages, model="granite-code:3b", url_llm_api=URL_LLM_API, save=True) -> str:
+    conn = http.client.HTTPConnection(HOST_LLM, PORT_LLM)
 
     headers = {
         "Content-Type": "application/json"
